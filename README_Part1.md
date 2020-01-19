@@ -410,7 +410,7 @@ SECRET_KEY = 'your_secret_key'
 
 変更を記録する。
 
-```
+```sh
 $ git add .
 $ git status
 $ git commit -m "first commit!"
