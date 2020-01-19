@@ -4,6 +4,7 @@
 
 参考文献は[**Test-Driven Development with Python: Obey the Testing Goat: Using Django, Selenium, and JavaScript (English Edition) 2nd Edition**](https://www.amazon.co.jp/dp/B074HXXXLS/ref=dp-kindle-redirect?_encoding=UTF8&btkr=1)を元に学習を進めていきます。
 
+本書ではDjango1.1系とFireFoxを使って機能テスト等を実施していますが、今回はDjagno3系とGoogle Chromeで機能テストを実施していきます。また一部、個人的な改造を行っていますが(Project名をConfigに変えるなど、、)、大きな変更はありません。
 
 ## 仮想環境の構築
 
@@ -25,11 +26,8 @@ $ pip install django selenium
 
 Google Chromeを使って機能テストを実施するので、Google ChromeのWebドライバーをダウンロードする。
 
-Google Chromeバージョン: 79.0.3945.130（Official Build） （64 ビット）なので、
+現在の環境がGoogle Chromeバージョン: 79.0.3945.130（Official Build） （64 ビット）なので、
 Google Chrome Driverは[ChromeDriver 79.0.3945.16](http://chromedriver.chromium.org/downloads)をダウンロードした。
-
-
-
 
 
 ## Part1. The Basics of TDD and Django
@@ -81,7 +79,7 @@ $ python functional_tests.py
     AssertionError
 ```
 
-ブラウザがseleniumによって自動で起動されるが、エラーページが表示されるのがわかる。
+ブラウザがseleniumによって自動で起動されるが、エラーページが表示されるのがわかる。シェル上でもAssertionErrorが表示されていることがわかる。これを解決したい。
 
 #### Djagnoを起動する
 
@@ -415,3 +413,8 @@ $ git add .
 $ git status
 $ git commit -m "first commit!"
 ```
+
+#### Chapter1 まとめ
+
+機能テストを記述するところからDjangoプロジェクトをスタートした。
+この調子で読み進めていく。
