@@ -1,0 +1,7 @@
+db.sqlite3
+debug.log
+/venv-tdd
+.vscode
+__pycache__
+*.pyc
+.env
