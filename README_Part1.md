@@ -376,9 +376,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
 
-LANGUAGE_CODE = 'ja'
+LANGUAGE_CODE = 'ja'  # 変更
 
-TIME_ZONE = 'Asia/Tokyo'
+TIME_ZONE = 'Asia/Tokyo'  # 変更
 
 USE_I18N = True
 
@@ -404,6 +404,18 @@ $ type nul > .env
 ```sh
 # .env
 SECRET_KEY = 'your_secret_key'
+```
+
+.gitignoreに.envを追加する。
+
+```sh
+db.sqlite3
+debug.log
+/venv-tdd
+.vscode
+__pycache__
+*.pyc
+.env  # 追加
 ```
 
 変更を記録する。
