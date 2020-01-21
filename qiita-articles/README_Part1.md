@@ -1,4 +1,4 @@
-# Djangoでテスト駆動開発 1
+# Djangoでテスト駆動開発 その1
 
 これはDjangoでテスト駆動開発(Test Driven Development, 以下:TDD)を理解するための学習用メモです。
 
