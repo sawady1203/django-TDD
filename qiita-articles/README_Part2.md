@@ -18,6 +18,10 @@ Chapter1では環境構築から初めての機能テストを記述し、Django
 ChromeのWebドライバーとSeleniumをつかったテストはユーザー視点でアプリケーションが**どう機能するのか**を確認することができるため、**機能テスト**と呼ばれています。
 これはユーザーがアプリケーションを使用するときの *ユーザーストーリー* をなぞるものであり、ユーザーがアプリケーションをどう利用して、それに対してアプリケーションがどうレスポンスを返すのかを決定づけるものと言えます。
 
+#### Functional Test == Acceptance Test == End-To-End Test
+
+今回参考にしている[**Test-Driven Development with Python: Obey the Testing Goat: Using Django, Selenium, and JavaScript (English Edition) 2nd Edition**](https://www.amazon.co.jp/dp/B074HXXXLS/ref=dp-kindle-redirect?_encoding=UTF8&btkr=1)ではアプリケーションの機能(*function*)をテストすることを*functional tests*と呼んでいるため、本記事では機能テストと呼んでいます。これは *acceptance tests(受け入れテスト)* 、*End-To-End tests(E2Eテスト、インテグレーションテスト)* と呼ばれたりもします。このテストを行うのは外から見てアプリケーション全体がどう機能するのかを確認するためです。
+
 そこで実際のユーザーストーリー想定しながら、機能テストにコメントとして記述していきます。
 
 ```python
@@ -152,7 +156,7 @@ if __name__ == '__main__':
 - *tearDown* はテストエラーでも実行される。
 - self.fail()は何がなんでもテストは失敗し、エラーが吐き出される。
 - unittest.main()でテストが実行され、自動的にテストケースとそのメソッドが実行される。
-- warnings='ignore'のオプションを追加すると過剰なResoureWarningなどを無視するこができる。
+- warnings='ignore'のオプションを追加すると過剰なResoureWarningなどを無視することができる。
 
 それでは実行してみましょう。
 
@@ -175,7 +179,7 @@ FAILED (failures=1)
 
 unittestモジュールを使うことで *AssertionError* の中身がより理解しやすくなりました。
 
-ここで *self.assertIn('To-Do', self.brower.title)* を *self.assertIn('Django', self.brower.title)* としたらテストがクリアできるはずです。これをを確認してみます。
+ここで *self.assertIn('To-Do', self.brower.title)* を *self.assertIn('Django', self.brower.title)* としたらテストがクリアできるはずです。これを確認してみます。
 
 ```python
 # django-tdd/functional_tests.py
@@ -266,10 +270,6 @@ OK
 $ git add .
 $ git commit -m "First FT specced out in comments, and now users unittest"
 ```
-
-#### Functional Test == Acceptance Test == End-To-End Test
-
-今回参考にしている**Test-Driven Development with Python: Obey the Testing Goat: Using Django, Selenium, and JavaScript (English Edition) 2nd Edition**](https://www.amazon.co.jp/dp/B074HXXXLS/ref=dp-kindle-redirect?_encoding=UTF8&btkr=1)ではアプリケーションの機能(*function*)をテストすることを*functional tests*と呼んでいるため、本記事では機能テストと呼んでいます。これは *acceptance tests(受け入れテスト)* 、*End-To-End tests(E2Eテスト、インテグレーションテスト)* と呼ばれたりもします。このテストを行うのは外から見てアプリケーション全体がどう機能するのかを確認するためのものです。
 
 #### Chapter2まとめ
 
