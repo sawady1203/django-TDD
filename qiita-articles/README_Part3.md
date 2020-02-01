@@ -96,4 +96,10 @@ Destroying test database for alias 'default'...
 
 lists/tests.pyが実行されてFailedしていうのが確認できました。ここでコミットしておきます。
 
+```sh
+$ git status
+$ git add lists
+$ git commit - m
+$ git commit -m "Add app for lists, with deliberately failing unit test"
+```
 
