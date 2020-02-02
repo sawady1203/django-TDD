@@ -83,7 +83,7 @@ F
 FAIL: test_bad_maths (lists.tests.SmokeTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "C:\~~pass~~\django-TDD\lists\tests.py", line 9, in test_bad_maths
+  File "C:\--your_pass--\django-TDD\lists\tests.py", line 9, in test_bad_maths
     self.assertEqual(1 + 1, 3)
 AssertionError: 2 != 3
 
@@ -151,11 +151,11 @@ ERROR: lists.tests (unittest.loader._FailedTest)
 ----------------------------------------------------------------------
 ImportError: Failed to import test module: lists.tests
 Traceback (most recent call last):
-  File "C:\Users\--your_user_name--\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 436, in _find_test_path
+  File "C:\--your_user_name--\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 436, in _find_test_path
     module = self._get_module_from_name(name)
-  File "C:\Users\--your_user_name--\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 377, in _get_module_from_name
+  File "C:\--your_user_name--\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 377, in _get_module_from_name
     __import__(name)
-  File "C:\Users\--your_path--\django-TDD\lists\tests.py", line 5, in <module>
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 5, in <module>
     from lists.views import home_page
 ImportError: cannot import name 'home_page' from 'lists.views' (C:\Users\--your_path--\django-TDD\lists\views.py)
 
@@ -191,11 +191,11 @@ E
 ERROR: test_root_url_resolve_to_home_page_view (lists.tests.SmokeTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "C:\Users\--your_path--\django-TDD\lists\tests.py", line 10, in test_root_url_resolve_to_home_page_view
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 10, in test_root_url_resolve_to_home_page_view
     found = resolve('/')
-  File "C:\Users\--your_path--\django-TDD\venv-tdd\lib\site-packages\django\urls\base.py", line 25, in resolve
+  File "C:\--your_path--\django-TDD\venv-tdd\lib\site-packages\django\urls\base.py", line 25, in resolve
     return get_resolver(urlconf).resolve(path)
-  File "C:\Users\--your_path--\django-TDD\venv-tdd\lib\site-packages\django\urls\resolvers.py", line 575, in resolve
+  File "C:\--your_path--\django-TDD\venv-tdd\lib\site-packages\django\urls\resolvers.py", line 575, in resolve
     raise Resolver404({'tried': tried, 'path': new_path})
 django.urls.exceptions.Resolver404: {'tried': [[<URLResolver <URLPattern list> (admin:admin) 'admin/'>]], 'path': ''}
 
@@ -301,3 +301,261 @@ $ git add .
 $ git status
 $ git commit -m "First unit test and url mapping, dummy view"
 ```
+
+現在のlists/views.pyが実際にHTMLを返しているのかどうかをテストできるようにlists/tests.pyを書き換えていきます。
+
+```python
+# lists/tests.py
+
+from django.urls import resolve
+from django.test import TestCase
+from django.http import HttpRequest
+
+from lists.views import home_page
+
+
+class SmokeTest(TestCase):
+
+    def test_root_url_resolve_to_home_page_view(self):
+        found = resolve('/')
+        self.assertEqual(found.func, home_page)
+
+    def test_home_page_returns_current_html(self):  # 追加
+        request = HttpRequest()
+        response = home_page(request)
+        html = response.content.decode('utf8')
+        self.assertTrue(html.startswith.('<html>'))
+        self.assertIn('<title>To-Do lists</title>', html)
+        self.assertTrue(html.endwith('</html>'))
+```
+
+`test_root_url_resolve_to_home_page_view`はURLマッピングが正確にできていのかどうかを確認していますが、
+`test_home_page_returns_current_html`で正確なHTMLが返せているのかどうかを確認しています。
+
+```sh
+$ python manage.py test
+
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+E.
+======================================================================
+ERROR: test_home_page_returns_current_html (lists.tests.SmokeTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 18, in test_home_page_returns_current_html
+    response = home_page(request)
+TypeError: home_page() takes 0 positional arguments but 1 was given
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.005s
+
+FAILED (errors=1)
+Destroying test database for alias 'default'...
+```
+
+`TypeError`が出ました。内容を確認すると`home_page() takes 0 positional arguments but 1 was given`とあるので
+`home_page()`の定義では引数が指定されていない(0 positional arguments)が、引数が与えられてて(1 was given)おかしいということがわかります。
+
+ということでlists/views.pyを書き換えたいと思います。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render
+
+
+def home_page(request):  # 変更
+    pass
+```
+
+home_page()関数に引数`request`を追加しました。これでテストをしてみます。
+
+```sh
+$ python manage.py test
+
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+E.
+======================================================================
+ERROR: test_home_page_returns_current_html (lists.tests.SmokeTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 19, in test_home_page_returns_current_html
+    html = response.content.decode('utf8')
+AttributeError: 'NoneType' object has no attribute 'content'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.005s
+
+FAILED (errors=1)
+Destroying test database for alias 'default'...
+```
+
+`TypeError`は解決しましたが、次は`AttributeError`が発生しました。
+`'NoneType' object has no attribute 'content'`とあるので`home_page(request)`の戻り値がNoneとなっているのが原因のようです。
+lists/views.pyを修正します。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render
+from django.http import HttpResponse  # 追加
+
+
+def home_page(request):
+    return HttpResponse()
+```
+
+`django.http.HttpResponse`を返すように修正しました。テストしてみましょう。
+
+```sh
+$ python manage.py test
+
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F.
+======================================================================
+FAIL: test_home_page_returns_current_html (lists.tests.SmokeTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\--your_path--\django-TDD\lists\tests.py", line 20, in test_home_page_returns_current_html
+    self.assertTrue(html.startswith('<html>'))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.005s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+```
+
+`AttributeError`は解決して`AssertionError`が発生しました。`html.startwith('<html>')`がFalseであるために`False is note ture`というメッセージがでているのがわかります。
+lists/views.pyを修正します。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+def home_page(request):
+    return HttpResponse('<html>')  # 変更
+```
+
+```sh
+$ python manage.py test
+
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F.
+======================================================================
+FAIL: test_home_page_returns_current_html (lists.tests.SmokeTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 21, in test_home_page_returns_current_html
+    self.assertIn('<title>To-Do lists</title>', html)
+AssertionError: '<title>To-Do lists</title>' not found in '<html>'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.005s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+```
+
+同じく`AssertionError`です。`'<title>To-Do lists</title>'`が見つからないとのことです。
+lists/views.pyを修正します。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+def home_page(request):
+    return HttpResponse('<html><title>To-Do lists</title>')  # 変更
+```
+
+```sh
+$ python manage.py test
+
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+F.
+======================================================================
+FAIL: test_home_page_returns_current_html (lists.tests.SmokeTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 22, in test_home_page_returns_current_html
+    self.assertTrue(html.endswith('</html>'))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.013s
+
+FAILED (failures=1)
+Destroying test database for alias 'default'...
+```
+
+同じく`AssertionError`です。`'</html>'`が見つからないとのことです。
+lists/views.pyを修正します。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render
+from django.http import HttpResponse
+
+
+def home_page(request):
+    return HttpResponse('<html><title>To-Do lists</title></html>')  # 変更
+```
+
+これでようやくうまくいくはずです。
+
+```sh
+$ python manage.py test
+
+Creating test database for alias 'default'...
+System check identified no issues (0 silenced).
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.004s
+
+OK
+Destroying test database for alias 'default'...
+```
+
+うまくいきました。単体テストがパスできたので開発サーバーを立ち上げてから機能テストを実行してみましょう。
+
+```sh
+# 開発サーバーの立ち上げ
+$ python manage.py runserver
+
+# 別のcmdを立ち上げて機能テストを実行
+$ python functional_tests.py
+
+DevTools listening on ws://127.0.0.1:51108/devtools/browser/9d1c6c55-8391-491b-9b14-6130c3314bba
+F
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_tests.py", line 21, in test_can_start_a_list_and_retrieve_it_later
+    self.fail('Finish the test!')
+AssertionError: Finish the test!
+
+----------------------------------------------------------------------
+Ran 1 test in 7.244s
+
+FAILED (failures=1)
+```
+
+機能テストはFAILEDとなっていますが、これは`unittest.TestCase`の`.fail`を使ってテストをパスしても必ずエラーを発生させるようにしているためでした。
+したがって、機能テストがうまくいったことが確認できます！
+
+コミットしておきましょう。
+
+
