@@ -6,19 +6,19 @@
 
 本書ではDjango1.1系とFireFoxを使って機能テスト等を実施していますが、今回はDjagno3系とGoogle Chromeで機能テストを実施していきます。また一部、個人的な改造を行っていますが(Project名をConfigに変えるなど、、)、大きな変更はありません。
 
-⇒⇒[その1](https://qiita.com/komedaoic/items/dd7abd24961250208c7c)はこちら
-⇒⇒[その2](https://qiita.com/komedaoic/items/58dc509e8f681da73199)はこちら
+⇒⇒[その1 - Chapter1](https://qiita.com/komedaoic/items/dd7abd24961250208c7c)はこちら
+⇒⇒[その2 - Chapter2](https://qiita.com/komedaoic/items/58dc509e8f681da73199)はこちら
 
 ## Part1. The Basics of TDD and Django
 
 ### Capter3. Testing as Simple Home Page with Unit Tests
 
-Chapter2では機能テストをUnittestを使って記述し、ページタイトルに”To-DO”があるかどうかをテストしました。
+Chapter2では機能テストを`unittest.TestCase`を使って記述し、ページタイトルに”To-Do”があるかどうかをテストしました。
 今回は実際にアプリケーションを開始してTDDしていきます。
 
 #### Our First Django App, and Our First Unit Test
 
-Djangoは1つのプロジェクト下にいくつかのアプリケーションを構築させる形と取っています。
+Djangoは1つのプロジェクト下に複数のアプリケーションを構築させる形と取っています。
 さっそくDjangoのアプリケーションを作成していきましょう。
 ここでは**lists**という名前のアプリケーションを作成します。
 
@@ -28,22 +28,21 @@ $ python manage.py startapp lists
 
 #### Unit Tests, and How They Differ from Functional Tests
 
-機能テスト(Functional Tests)はアプリケーションを外側から(ユーザー視点で)見て機能しているのかどうかをテストしているのに対して、
+機能テスト(Functional Tests)はアプリケーションを外側から(ユーザー視点で)見て正確に機能しているのかどうかをテストしているのに対して、
 単体テスト(Unit Tests)はアプリケーションを内側から(開発者視点で)機能しているのかをテストしています。
 TDDは機能テスト、単体テストをカバーすることが求められており、開発手順は下記のようになります。
 
 **step1.** 機能テストを書く(ユーザー視点から新しい機能を説明しながら)。
 
-**step2.** 機能テストが失敗したらテストをパスするにはどうコードを書いたら良いのかを考える(いきなり書かない)。
-自分の書いたコードがどう振舞って欲しいのかを単体テストを追加して定義する。
+**step2.** 機能テストが失敗したらテストをパスするにはどうコードを書いたら良いのかを考える(いきなり書かない)。自分の書いたコードがどう振舞って欲しいのかを単体テストを追加して定義する。
 
 **step3.** 単体テストが失敗したら、単体テストがパスする最小のアプリケーションコードを書く。
 
-**step4.** step2とstep3を繰り返して機能テストがパスかどうかを確認する。
+**step4.** step2とstep3を繰り返して最後に機能テストがパスかどうかを確認する。
 
 #### Unit Testing in Django
 
-ホームページのviewのテストを書いてみるためにlists/tests.pyを確認してみましょう。
+ホームページのviewのテストをlists/tests.pyに書いていきます。まずはこちらを確認してみましょう。
 
 ```python
 # lists/tests.py
@@ -53,8 +52,7 @@ from django.test import TestCase
 # Create your tests here.
 ```
 
-これを見るとDjangoが提供するTestCaseクラスを使ってDjangoの単体テストを書くことができることがわかりました。
-djagno.test.TestCaseは機能テストで使った標準モジュールであるunittest.TestCaseを拡張したものです。
+これを見るとDjangoが提供するTestCaseクラスを使って単体テストを書くことができることがわかりました。`djagno.test.TestCase` は機能テストで使った標準モジュールである`unittest.TestCase` を拡張したものです。
 試しに単体テストを書いてみます。
 
 ```python
@@ -94,25 +92,24 @@ FAILED (failures=1)
 Destroying test database for alias 'default'...
 ```
 
-lists/tests.pyが実行されてFailedしていうのが確認できました。ここでコミットしておきます。
+lists/tests.pyが実行されてFailedしているのが確認できました。ここでコミットしておきます。
 
 ```sh
 $ git status
 $ git add lists
-$ git commit - m
 $ git commit -m "Add app for lists, with deliberately failing unit test"
 ```
 
 #### Django's MVC, URLs, and View Functions
 
-Djangoはユーザーからの特定のURLに対して何をするべきなのかを決定しておく必要があります。
+Djangoは特定のURLに対して何をするべきなのかを定義しておく必要があります。
 Djangoのワークフローは次のようになっています。
 
 1. HTTP/requestが特定のURLにくる
 
-2. HTTP/requestに対してどのviewを実行するべきなのかルールが決められているのでルールにしたがってviewを実行する。
+2. HTTP/requestに対してどのViewを実行するべきなのかルールが決められているのでルールにしたがってviewを実行する。
 
-3. viewはrequestを処理してHTTP/responseを返す。
+3. Viewはrequestを処理してHTTP/responseを返す。
 
 したがって、我々が行うことは次の2点です。
 
@@ -129,7 +126,7 @@ from django.urls import resolve  # 追加
 from django.test import TestCase
 from lists.views import home_page  # 追加
 
-class SmokeTest(TestCase):
+class HomePageTest(TestCase):
 
     def test_root_url_resolve_to_home_page_view(self):
         found = resolve('/')
@@ -166,7 +163,7 @@ Ran 1 test in 0.001s
 FAILED (errors=1)
 ```
 
-ImportErrorが出現しました。内容をみると`lists.views`から`home_page`がimportできないと教えてくれています。
+`ImportError`が出現しました。内容をみると`lists.views`から`home_page`がimportできないと教えてくれています。
 それでは`lists.views`に`home_page`を記述してみましょう。
 
 ```python
@@ -177,7 +174,7 @@ from django.shortcuts import render
 home_page = None
 ```
 
-なにかの冗談みたいですがこれでImportErrorは解決できるはずです。TDDはエラーを解決する最小のコードを書いていくお気持ちを思い出しましょう。
+なにかの冗談みたいですがこれで`ImportError`は解決できるはずです。TDDはエラーを解決する最小のコードを書いていくお気持ちを思い出しましょう。
 
 もう一度テストしてみます。
 
@@ -207,7 +204,7 @@ Destroying test database for alias 'default'...
 
 ```
 
-確かに`ImportError`は解決しましたが、次もテストが失敗しました。Tracebackを確認すると`'/'`を`resolve`が解決してもDjangoが404エラーを返すことが分かります。つまり、Djangoが`'/'`を解決できていないという意味になります。
+確かに`ImportError`は解決しましたが、またしてもテストが失敗しました。Tracebackを確認すると`'/'`を`resolve`が解決してもDjangoが404エラーを返すことが分かります。つまり、Djangoが`'/'`を解決できていないという意味になります。
 
 #### urls.py
 
@@ -314,7 +311,7 @@ from django.http import HttpRequest
 from lists.views import home_page
 
 
-class SmokeTest(TestCase):
+class HomePageTest(TestCase):
 
     def test_root_url_resolve_to_home_page_view(self):
         found = resolve('/')
@@ -331,6 +328,7 @@ class SmokeTest(TestCase):
 
 `test_root_url_resolve_to_home_page_view`はURLマッピングが正確にできていのかどうかを確認していますが、
 `test_home_page_returns_current_html`で正確なHTMLが返せているのかどうかを確認しています。
+新たに単体テストを追加したので早速テストしてみましょう。
 
 ```sh
 $ python manage.py test
@@ -354,7 +352,7 @@ Destroying test database for alias 'default'...
 ```
 
 `TypeError`が出ました。内容を確認すると`home_page() takes 0 positional arguments but 1 was given`とあるので
-`home_page()`の定義では引数が指定されていない(0 positional arguments)が、引数が与えられてて(1 was given)おかしいということがわかります。
+`home_page()`の定義では引数が指定されていない(`0 positional arguments`)が、引数が与えられてて(`1 was given`)おかしいということがわかります。
 
 ということでlists/views.pyを書き換えたいと思います。
 
@@ -368,7 +366,7 @@ def home_page(request):  # 変更
     pass
 ```
 
-home_page()関数に引数`request`を追加しました。これでテストをしてみます。
+`home_page()`関数に引数`request`を追加しました。これでテストをしてみます。
 
 ```sh
 $ python manage.py test
@@ -392,7 +390,7 @@ Destroying test database for alias 'default'...
 ```
 
 `TypeError`は解決しましたが、次は`AttributeError`が発生しました。
-`'NoneType' object has no attribute 'content'`とあるので`home_page(request)`の戻り値がNoneとなっているのが原因のようです。
+`'NoneType' object has no attribute 'content'`とあるので`home_page(request)`の戻り値が`None`となっているのが原因のようです。
 lists/views.pyを修正します。
 
 ```python
@@ -429,7 +427,7 @@ FAILED (failures=1)
 Destroying test database for alias 'default'...
 ```
 
-`AttributeError`は解決して`AssertionError`が発生しました。`html.startwith('<html>')`がFalseであるために`False is note ture`というメッセージがでているのがわかります。
+`AttributeError`は解決して`AssertionError`が発生しました。`html.startwith('<html>')`がFalseであるために`False is not ture`というメッセージがでているのがわかります。
 lists/views.pyを修正します。
 
 ```python
@@ -554,7 +552,7 @@ FAILED (failures=1)
 ```
 
 機能テストはFAILEDとなっていますが、これは`unittest.TestCase`の`.fail`を使ってテストをパスしても必ずエラーを発生させるようにしているためでした。
-したがって、機能テストがうまくいったことが確認できます！
+したがって、機能テストがうまくいったことがわかります！
 
 コミットしておきましょう。
 
@@ -563,3 +561,18 @@ $ git add .
 $ git commit -m "Basic view now return minimal HTML"
 ```
 
+#### Chapter3まとめ
+
+ここまででカバーしたことを確認しておきます。
+
+- Djagnoのアプリケーションをスタートしました。
+
+- Djangoのユニットテストランナーを使いました。
+
+- 機能テストと単体テストの違いを理解しました。
+
+- Djangoのrequestとresponseオブジェクトを使ってviewを作成しました
+
+- 基本的なHTMLを返しました。
+
+単体テストとコードの追加修正サイクルを回して機能を作っていく過程を確認できました。
