@@ -558,4 +558,8 @@ FAILED (failures=1)
 
 コミットしておきましょう。
 
+```sh
+$ git add .
+$ git commit -m "Basic view now return minimal HTML"
+```
 
