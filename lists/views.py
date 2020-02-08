@@ -1,6 +1,6 @@
 # lists/views.py
 
-from django.shortcuts import HttpResponse
+# from django.shortcuts import HttpResponse
 from django.shortcuts import render
 
 

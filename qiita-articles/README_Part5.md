@@ -8,7 +8,7 @@
 
 ⇒⇒[その1 - Chapter1](https://qiita.com/komedaoic/items/dd7abd24961250208c7c)はこちら
 ⇒⇒[その2 - Chapter2](https://qiita.com/komedaoic/items/58dc509e8f681da73199)はこちら
-⇒⇒[その2 - Chapter3](https://qiita.com/komedaoic/items/0057b55c8ba763bda6ca)はこちら
+⇒⇒[その3 - Chapter3](https://qiita.com/komedaoic/items/0057b55c8ba763bda6ca)はこちら
 
 ## Part1. The Basics of TDD and Django
 
@@ -54,13 +54,13 @@ ERROR: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
 Traceback (most recent call last):
   File "functional_tests.py", line 42, in test_can_start_a_list_and_retrieve_it_later
     table = self.browser.find_element_by_id('id_list_table')
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 360, in find_element_by_id
+  File "C:--your_path--\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 360, in find_element_by_id
     return self.find_element(by=By.ID, value=id_)
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 978, in find_element
+  File "C:--your_path--\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 978, in find_element
     'value': value})['value']
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 321, in execute
+  File "C:--your_path--\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\webdriver.py", line 321, in execute
     self.error_handler.check_response(response)
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 242, in check_response
+  File "C:--your_path--\django-TDD\venv-tdd\lib\site-packages\selenium\webdriver\remote\errorhandler.py", line 242, in check_response
     raise exception_class(message, screen, stacktrace)
 selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":"[id="id_list_table"]"}
   (Session info: chrome=79.0.3945.130)
@@ -159,7 +159,7 @@ python manage.py test
 FAIL: test_can_save_a_POST_request (lists.tests.HomePageTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\lists\tests.py", line 14, in test_can_save_a_POST_request
+  File "C:--your_path--\django-TDD\lists\tests.py", line 14, in test_can_save_a_POST_request
     self.assertIn('A new list item', response.content.decode())
 AssertionError: 'A new list item' not found in '<!-- lists/home.html -->\n<html>\n    <head>\n        <title>To-Do lists</title>\n    </head>\n    <body>\n        <h1>Your To-Do list</h1>\n            <form method="post">\n                <input name="item_text" id="id_new_item" placeholder="Enter a to-do item">\n                <input type="hidden" name="csrfmiddlewaretoken" value="WxS3OX6BLnYLQuT4saIKUU4O18Z9mDZDIfhIrUiBjeeizFlf2ajmbj86QyzEo04R">\n            </form>\n        <table id="id_list_table">\n        </table>\n    </body>\n</html>\n'
 
@@ -368,5 +368,202 @@ Ran 1 test in 13.815s
 機能テストを更新したのでコミットしておきます。
 
 ```sh
-$ git commit -a
+$ git add .
+$ git commit -m "post request returns id_list_table"
+```
+
+機能テストのテキストがあるかどうかの判断は切り分けて処理を行うのが賢いやり方です。
+機能テストをリファクタリングしましょう。
+
+```python
+# functional_tests.py
+
+[...]
+def tearDown(self):
+    self.browser.quit()
+
+def check_for_row_in_list_table(self, row_text):
+    table = self.browser.find_element_by_id('id_list_table')
+    rows = table.find_elements_by_tag_name('tr')
+    self.assertIn(row_text, [row.text for row in rows])
+
+[...]
+
+        # のび太がエンターを押すと、ページは更新され、
+        # "1: どら焼きを買うこと"がto-doリストにアイテムとして追加されていることがわかった
+        inputbox.send_keys(Keys.ENTER)
+        time.sleep(1)  # ページ更新を待つ。
+        self.check_for_row_in_list_table('1: Buy dorayaki')
+
+        # テキストボックスは引続きアイテムを記入することができるので、
+        # 「どら焼きのお金を請求すること」を記入した(彼はお金にはきっちりしている)
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys("Demand payment for the dorayaki")
+        inputbox.send_keys(Keys.ENTER)
+        time.sleep(1)
+
+        # ページは再び更新され、新しいアイテムが追加されていることが確認できた
+        self.check_for_row_in_list_table('2: Demand payment for the dorayaki')
+
+[...]
+
+```
+
+#### The Django ORM and Our First Model
+
+DjangoのORM(Object-Relational Mapper)をつかってItemを追加するためのテーブルを作成していきましょう。
+これは*lists/models.py*に記述していきますが、先に単体テストを書いていきましょう。
+
+```python
+# lists/tests.pyに追加
+
+from lists.models import Item
+
+
+class ItemModelTest(TestCase):
+
+    def test_saving_and_retrieving_item(self):
+        first_item = Item()
+        first_item.text = 'The first (ever) list item'
+        first_item.save()
+
+        second_item = Item()
+        second_item.text = 'Item the second'
+        second_item.save()
+
+        saved_items = Item.objects.all()
+        self.assertEqual(saved_items.count(), 2)
+
+        first_saved_item = saved_items[0]
+        second_saved_item = saved_items[1]
+        self.assertEqual(first_saved_item.text, 'The first (ever) list item')
+        self.assertEqual(second_saved_item.text, 'Item the second')
+
+```
+
+モデルを定義する際に確認する点は以下の2点のようです。
+
+- モデルにデータが保存されているか
+
+- モデルからデータが取り出せているか
+
+これを単体テストで確認します。
+
+```sh
+$ python manage.py test
+
+======================================================================
+ERROR: lists.tests (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: lists.tests
+Traceback (most recent call last):
+  File "C:\Users\masayoshi\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "C:\Users\masayoshi\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "C:--your_path--\django-TDD\lists\tests.py", line 4, in <module>
+    from lists.models import Item
+ImportError: cannot import name 'Item' from 'lists.models' (C:--your_path--\django-TDD\lists\models.py)
+```
+
+モデルを定義していないので`ImportError`となりました。早速モデルを定義します。
+
+```python
+# lists/models.py
+
+from django.db import models
+
+
+class Item(object):
+    pass
+```
+
+単体テストを実行すると結果は`AttributeError: 'Item' object has no attribute 'save'`となります。
+`Item`クラスに`save`メソッドを追加するには`Model class`を継承する必要があります。
+`lists/models.py`を書き換えましょう.
+
+```python
+# lists/models.py
+
+from django.db import models
+
+
+class Item(models.Model):
+    pass
+
+```
+
+単体テストの結果は`django.db.utils.OperationalError: no such table: lists_item`となります。
+これは*lists/models.py*に`Item`クラスを追加したものの、実際のテーブルは作成されていないためです。
+
+##### Our First Database Migration
+
+DjangoのORMを使ってマイグレーションをしましょう。
+
+```sh
+$ python manage.py makemigrations
+Migrations for 'lists':
+  lists\migrations\0001_initial.py
+    - Create model Item
+```
+
+listsフォルダ内に`/migrations`というフォルダが作成されました。
+
+単体テストを行うと`AttributeError: 'Item' object has no attribute 'text'`という結果になりました。
+
+##### The Test Gets Surprisingly Far
+
+`Item`クラスに`text`を追加していきます。
+
+```python
+# lists/models.py
+
+from django.db import models
+
+
+class Item(models.Model):
+    text = models.TextField()
+```
+
+単体テストを行うと`django.db.utils.OperationalError: no such column: lists_item.text`となります。
+これは作成したItemというテーブルに`text`がまだ追加されていないためです。
+追加するにはマイグレーションする必要があります。
+
+```sh
+$ python manage.py makemigrations
+
+You are trying to add a non-nullable field 'text' to item without a default; we can't do that (the database needs something to populate existing rows).
+Please select a fix:
+ 1) Provide a one-off default now (will be set on all existing rows with a null value for this column)
+ 2) Quit, and let me add a default in models.py
+Select an option: 2
+```
+
+`models.TextField()`にはdefault値を設定する必要があるようなので追加します。
+
+```python
+# lists/models.py
+
+from django.db import models
+
+
+class Item(models.Model):
+    text = models.TextField(default='')
+```
+
+モデルを変更したのでマイグレーションします。
+
+```sh
+$ python manage.py makemigrations
+Migrations for 'lists':
+  lists\migrations\0002_item_text.py
+    - Add field text to item
+```
+
+これで単体テストはパスできました。
+コミットしておきましょう。
+
+```
+$ git add lists
+$ git commit -m "Model for list Items and associated migration"
 ```
