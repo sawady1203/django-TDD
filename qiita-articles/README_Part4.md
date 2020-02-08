@@ -370,3 +370,144 @@ class HomePageTest(TestCase):
 $ git add .
 $ git commit -m "Refactor home page view to user a template"
 ```
+
+#### A Little More of Our Front Page
+
+単体テストはパスしまいたが、機能テストは未だ失敗したままです。
+テンプレートの中身は単体テストでは評価されないため、機能テストを通してテンプレートが正しいのかどうかを判断します。
+
+```html
+<!-- lists/home.html -->
+<html>
+    <head>
+        <title>To-Do lists</title>
+    </head>
+    <body>
+        <h1>Your To-Do list</h1>
+    </body>
+</html>
+```
+
+```sh
+$ python functional_tests.py
+
+[...]
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":"[id="id_new_item"]"}
+  (Session info: chrome=79.0.3945.130)
+```
+
+新しいアイテムを入力する場所を追加します。
+
+```html
+<!-- lists/home.html -->
+<html>
+    <head>
+        <title>To-Do lists</title>
+    </head>
+    <body>
+        <h1>Your To-Do list</h1>
+        <input id="id_new_item">
+    </body>
+</html>
+```
+
+```sh
+$ python functional_tests.py
+
+[...]
+AssertionError: '' != 'Enter a to-do item'
++ Enter a to-do item
+
+```
+
+placeholderを追加しましょう。
+
+```html
+<!-- lists/home.html -->
+<html>
+    <head>
+        <title>To-Do lists</title>
+    </head>
+    <body>
+        <h1>Your To-Do list</h1>
+        <input id="id_new_item" placeholder="Enter a to-do item">
+    </body>
+</html>
+```
+
+```sh
+$ python functional_tests.py
+
+[...]
+selenium.common.exceptions.NoSuchElementException: Message: no such element: Unable to locate element: {"method":"css selector","selector":"[id="id_list_table"]"}
+
+```
+
+tableタグを追加します。
+
+```html
+<!-- lists/home.html -->
+<html>
+    <head>
+        <title>To-Do lists</title>
+    </head>
+    <body>
+        <h1>Your To-Do list</h1>
+        <input id="id_new_item" placeholder="Enter a to-do item">
+        <table id="id_list_table">
+        </table>
+    </body>
+</html>
+```
+
+```sh
+$ python functional_tests.py
+
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_tests.py", line 45, in test_can_start_a_list_and_retrieve_it_later
+    any(row.text == "1: Buy dorayaki" for row in rows)
+AssertionError: False is not true
+```
+
+これはfunctional_tests.pyの`.assertTrue(any(~~))`でのエラーです。any(iterator)は引数がiteratorの中にあればTrueを返します。
+入力された値を"1: Buy dorayaki"として返す機能は後で実装します。
+ひとまずカスタムエラーメッセージを`"New to-do item did not appear in table"`として追加しておきましょう。
+
+```python
+# functional_tests.py
+
+# ~~省略~~
+table = self.browser.find_element_by_id('id_list_table')
+rows = table.find_elements_by_tag_name('tr')
+self.assertTrue(
+    any(row.text == "1: Buy dorayaki" for row in rows),
+    "New to-do item did not appear in table"  # 追加
+)
+```
+
+```sh
+$ python functional_tests.py
+
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_tests.py", line 46, in test_can_start_a_list_and_retrieve_it_later
+    "New to-do item did not appear in table"
+AssertionError: False is not true : New to-do item did not appear in table
+
+----------------------------------------------------------------------
+```
+
+コミットしておきましょう。
+
+```sh
+$ git add .
+$ git commit -m "Front page HTML now generated from template"
+```
+
+#### Chapter4まとめ
+機能テスト、単体テスト、単体テストとコーディングのサイクル、リファクタリングの流れを実装しました。

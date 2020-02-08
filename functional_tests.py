@@ -41,19 +41,25 @@ class NewVisitorTest(unittest.TestCase):
 
         table = self.browser.find_element_by_id('id_list_table')
         rows = table.find_elements_by_tag_name('tr')
-        self.assertTrue(
-            any(row.text == "1: Buy dorayaki" for row in rows)
-        )
+        self.assertIn('1: Buy dorayaki', [row.text for row in rows])
 
         # テキストボックスは引続きアイテムを記入することができるので、
         # 「どら焼きのお金を請求すること」を記入した(彼はお金にはきっちりしている)
-
-        self.fail("Finish the test!")
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys("Demand payment for the dorayaki")
+        inputbox.send_keys(Keys.ENTER)
+        time.sleep(1)
 
         # ページは再び更新され、新しいアイテムが追加されていることが確認できた
+        table = self.browser.find_element_by_id('id_list_table')
+        rows = table.find_elements_by_tag_name('tr')
+        self.assertIn('1: Buy dorayaki', [row.text for row in rows])
+        self.assertIn('2: Demand payment for the dorayaki',
+        [row.text for row in rows])
 
         # のび太はこのto-doアプリが自分のアイテムをきちんと記録されているのかどうかが気になり、
         # URLを確認すると、URLはのび太のために特定のURLであるらしいことがわかった
+        self.fail("Finish the test!")
 
         # のび太は一度確認した特定のURLにアクセスしてみたところ、
 
