@@ -567,3 +567,392 @@ Migrations for 'lists':
 $ git add lists
 $ git commit -m "Model for list Items and associated migration"
 ```
+
+#### Saving the POST to the Database
+
+モデルの保存と取り出しが確認できたので、POSTリクエストの内容が保存できるかどうかを確認するテストを追加します。
+
+```python
+# lists/tests.py
+
+def test_can_save_a_POST_requset(self):
+    data = {'item_text': 'A new list item'}
+    response = self.client.post('/', data)
+
+    # 追加されたかどうか
+    self.assertEqual(Item.objects.count(), 1)
+
+    # 正しく取り出せているかどうか
+    new_item = Item.objects.first()
+    self.assertEqual(new_item, data['item_text'])
+
+    # 保存された内容がレスポンスされているか
+    self.assertIn(data['item_text'], response.content.decode())
+
+    # 指定したテンプレートを使用しているかどうか
+    self.assertTemplateUsed(response, 'lists/home.html')
+```
+
+単体テストを実施してみましょう
+
+```sh
+$ python manage.py test
+
+======================================================================
+FAIL: test_can_save_a_POST_requset (lists.tests.ItemModelTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\lists\tests.py", line 43, in test_can_save_a_POST_requset
+    self.assertEqual(Item.objects.count(), 1)
+AssertionError: 0 != 1
+
+```
+
+`AssertionError: 0 != 1`はItemにデータが保存されていないために発生しているようです。
+これを解決するためにViewを書き換えていきましょう。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render
+from lists.models import Item
+
+
+def home_page(request):
+    if request.method == 'POST':
+        new_item_text = request.POST['item_text']
+        Item.objects.create(text=new_item_text)  # 保存
+    else:
+        return render(request, 'lists/home.html')
+    return render(request, 'lists/home.html', {
+            'new_item_text': new_item_text,
+        })
+```
+
+また、POSTだけでなくGETの場合のテストも追加しておく必要がありそうです。
+
+```python
+class HomePageTest(TestCase):
+
+    def test_users_home_template(self):
+        response = self.client.get('/')  # URLの解決
+        self.assertTemplateUsed(response, 'lists/home.html')
+
+    def test_can_save_a_POST_requset(self):
+        data = {'item_text': 'A new list item'}
+        response = self.client.post('/', data)
+
+        # 追加されたかどうか
+        self.assertEqual(Item.objects.count(), 1)
+
+        # 正しく取り出せているかどうか
+        new_item = Item.objects.first()
+        self.assertEqual(new_item, data['item_text'])
+
+        # 保存された内容がレスポンスされているか
+        self.assertIn(data['item_text'], response.content.decode())
+
+        # 指定したテンプレートを使用しているかどうか
+        self.assertTemplateUsed(response, 'lists/home.html')
+
+    def test_only_saves_items_when_necessary(self):  # 追加
+        self.client.get('/')
+        self.assertEqual(Item.objects.count(), 0)
+```
+
+ViewをGETとPOSTの場合を考慮した書き方に変更しましょう。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render
+from lists.models import Item
+
+
+def home_page(request):
+    if request.method == 'POST':
+        new_item_text = request.POST['item_text']
+        Item.objects.create(text=new_item_text)
+    else:
+        new_item_text = ''
+    return render(request, 'lists/home.html', {
+            'new_item_text': new_item_text,
+        })
+```
+
+これで単体テストを実行するとパスすることができました。
+
+#### Redirect After Post
+
+GETリクエストに対して`new_item_text = ''`を返すのはあまり良い選択とは思えません。
+Viewの役割は「ユーザーからのインプットを処理すること」と、「正しいレスポンスを返すこと」に分けられます。
+今回は「正しいレスポンスを返すこと」について考えてみます。
+
+POSTを受け取った後はredirectをさせるのが良い選択です([Always redirect agter a POST](https://en.wikipedia.org/wiki/Post/Redirect/Get))。
+
+単体テストをそのように書き換えましょう。
+
+```python
+# lists/test.py
+
+[...]
+
+def test_can_save_a_POST_requset(self):
+    self.client.post('/', data={'item_text': 'A new list item'})
+    # 追加されたかどうか
+    self.assertEqual(Item.objects.count(), 1)
+    # 正しく取り出せているかどうか
+    new_item = Item.objects.first()
+    self.assertEqual(new_item.text, "A new list item")
+
+def test_redirects_after_POST(self):
+    response = self.client.post('/', data={'item_text': 'A new list item'})
+    # POSTの後にリダイレクトされてい るか
+    self.assertEqual(response.status_code, 302)
+    # リダイレクト先が正しいかどうか
+    self.assertEqual(response['location'], '/')
+
+[...]
+```
+
+HTTP.redirectのステータスコードは302です。単体テストを実行します。
+`AssertionError: 200 != 302`となりました。
+POST後に`('/')`へリダイレクトするようにViewを書き換えます。
+
+```python
+# lists/views.py
+
+from django.shortcuts import render, redirect  # 追加
+from lists.models import Item
+
+
+def home_page(request):
+    if request.method == 'POST':
+        new_item_text = request.POST['item_text']
+        Item.objects.create(text=new_item_text)
+        return redirect('/')
+    return render(request, 'lists/home.html')
+```
+
+POSTのリダイレクトが有効になるようにViewを変更しまた。これで単体テストはパスしました。
+
+#### Rendering Items in the Templates
+
+登録されたアイテムがリスト形式になって表示される機能をつくっていきましょう。
+GETリクエストが来た時に全てのアイテムがHTMLに含まれていてほしいということになります。
+
+```python
+# lists/tests.py
+
+class HomePageTest(TestCase):
+    [...]
+
+    def test_displays_all_lits_items(self):
+        Item.objets.create(text="itemey 1")
+        Item.objets.create(text="itemey 2")
+
+        response = self.client.get('/')
+
+        self.assertIn('itemey 1', response.cotents.decode())
+        self.assertIn('itemey 2', response.cotents.decode())
+
+    [...]
+```
+
+現在のGETリクエストは単に`home.html`を返すだけとなっています。
+アイテムの一覧を返せるようにGET時のViewを変更しましょう。
+
+```python
+# lists/views.py
+
+def home_page(request):
+    if request.method == 'POST':
+        new_item_text = request.POST['item_text']
+        Item.objects.create(text=new_item_text)
+        return redirect('/')
+
+    items = Item.objects.all()
+    return render(request, 'lists/home.html', {'items': items})
+```
+
+単体テストを実施しましょう。
+
+```sh
+$ python manage.py test
+
+======================================================================
+FAIL: test_displays_all_lits_items (lists.tests.HomePageTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\lists\tests.py", line 38, in test_displays_all_lits_items
+    self.assertIn('itemey 1', response.content.decode())
+AssertionError: 'itemey 1' not found in '<!-- lists/home.html -->\n<html>\n    <head>\n        <title>To-Do lists</title>\n    </head>\n
+ <body>\n        <h1>Your To-Do list</h1>\n            <form method="post">\n                <input name="item_text" id="id_new_item" placeholder="Enter a to-do item">\n                <input type="hidden" name="csrfmiddlewaretoken" value="DX7a2J4eXPA2wxUPvoN6dKJbDKBZAzZ3XdLGQjQyTNkh6o7GE9jbOkWNAsR8kkVn">\n            </form>\n        <table id="id_list_table">\n            <tr><td>1: </td></tr>\n        </table>\n    </body>\n</html>\n'
+
+----------------------------------------------------------------------
+
+```
+
+`response.content`内に`itemey 1`が表示されていないようです。`templates/lists/home.html`にテーブル一覧を表示させるように変更しましょう。
+
+```html
+<!-- lists/home.html -->
+[...]
+<table id="id_list_table">
+    {% for item in items %}
+        <tr><td>{{ item.text }}</td></tr>
+    {% endfor %}
+</table>
+[...]
+```
+
+これで単体テストはパスすることができました。単体テストが通ったので機能テストを実施しましょう。
+
+```sh
+$ python functional_tests.py
+
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_tests.py", line 28, in test_can_start_a_list_and_retrieve_it_later
+    self.assertIn('To-Do', self.browser.title)
+AssertionError: 'To-Do' not found in 'OperationalError at /'
+
+----------------------------------------------------------------------
+
+```
+
+機能テストを確認すると最初の`To-Do`表示すらできていないことがわかりました。
+これは何か根本的な見落としがありそうです。開発サーバー`(http://localhost:8000)`にアクセスして画面を確認してみましょう。
+
+すると`OperationalError at / no such table: lists_item`という表示があります。
+どうやら作成したと思っていたデータベースが出来ていないようです。
+
+#### Creating Our Production Database with migrate
+
+データベースが出来ていないのにも関わらず単体テストではエラーが発生しなかったのはなぜでしょうか？
+Djangoの`TestCase`を使った単体テストではテスト用のデータベースが単体テストを実行する度に作成されは破棄されているため、単体テストでは発生しなかったのです(すごい)。
+
+したがって機能テストを実行するためにはデータベースを作成する必要があります。
+
+```sh
+$ python manage.py migrate
+
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, lists, sessions
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying lists.0001_initial... OK
+  Applying lists.0002_item_text... OK
+  Applying sessions.0001_initial... OK
+
+```
+
+`python manage.py makemigrations`でデータベースの変更内容を記録していたので、`python manage.py migrate`で実際にデータベースを作成できたようです。
+それでは機能テストを実施したいと思います。
+
+```sh
+$ python functional_tests.py
+
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_tests.py", line 46, in test_can_start_a_list_and_retrieve_it_later
+    self.check_for_row_in_list_table('1: Buy dorayaki')
+  File "functional_tests.py", line 21, in check_for_row_in_list_table
+    self.assertIn(row_text, [row.text for row in rows])
+AssertionError: '1: Buy dorayaki' not found in ['Buy dorayaki']
+
+```
+
+どうやらアイテムの表示が`1: ~~`のように数え上げられていないようです。
+これはDjangoのテンプレートタグを使って解決できます。
+*lists/home.html*の<table></table>内容を変更しましょう。
+
+```html
+<!-- lists/home.html -->
+[...]
+<table id="id_list_table">
+    {% for item in items %}
+        <tr><td>{{forloop.counter}}: {{ item.text }}</td></tr>
+    {% endfor %}
+</table>
+[...]
+```
+
+機能テストを実施します。
+
+```sh
+$ python functional_tests.py
+
+
+======================================================================
+FAIL: test_can_start_a_list_and_retrieve_it_later (__main__.NewVisitorTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "functional_tests.py", line 56, in test_can_start_a_list_and_retrieve_it_later
+    self.check_for_row_in_list_table('2: Demand payment for the dorayaki')
+  File "functional_tests.py", line 21, in check_for_row_in_list_table
+    self.assertIn(row_text, [row.text for row in rows])
+AssertionError: '2: Demand payment for the dorayaki' not found in ['1: Buy dorayaki', '2: Buy dorayaki', '3: Demand payment for the dorayaki']
+
+----------------------------------------------------------------------
+```
+
+Seleniumによって実行されたテスト画面を確認してみると、既に機能テストによって追加されてしまった`Buy dorayaki`があることがわかります。これによって`'2: Demand payment for the dorayaki'`が正しく評価されていないようです。
+
+したがって、一度`db.sqplite3`を削除して作り直したのち、機能テストを実施し直しましょう。
+
+```sh
+# db.sqlite3の削除
+$ del db.sqplite3
+# データベースを0から作り直す
+$ python manage.py migrate --noinput
+
+Operations to perform:
+  Apply all migrations: admin, auth, contenttypes, lists, sessions
+Running migrations:
+  Applying contenttypes.0001_initial... OK
+  Applying auth.0001_initial... OK
+  Applying admin.0001_initial... OK
+  Applying admin.0002_logentry_remove_auto_add... OK
+  Applying admin.0003_logentry_add_action_flag_choices... OK
+  Applying contenttypes.0002_remove_content_type_name... OK
+  Applying auth.0002_alter_permission_name_max_length... OK
+  Applying auth.0003_alter_user_email_max_length... OK
+  Applying auth.0004_alter_user_username_opts... OK
+  Applying auth.0005_alter_user_last_login_null... OK
+  Applying auth.0006_require_contenttypes_0002... OK
+  Applying auth.0007_alter_validators_add_error_messages... OK
+  Applying auth.0008_alter_user_username_max_length... OK
+  Applying auth.0009_alter_user_last_name_max_length... OK
+  Applying auth.0010_alter_group_name_max_length... OK
+  Applying auth.0011_update_proxy_permissions... OK
+  Applying lists.0001_initial... OK
+  Applying lists.0002_item_text... OK
+  Applying sessions.0001_initial... OK
+
+```
+
+機能テストを再度行うと`AssertionError: Finish the test!`となりました。
+無事に機能テストはパスしたようです。
+
+コミットしておきましょう。
+

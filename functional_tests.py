@@ -42,7 +42,7 @@ class NewVisitorTest(unittest.TestCase):
         # のび太がエンターを押すと、ページは更新され、
         # "1: どら焼きを買うこと"がto-doリストにアイテムとして追加されていることがわかった
         inputbox.send_keys(Keys.ENTER)
-        time.sleep(1)  # ページ更新を待つ。
+        time.sleep(10)  # ページ更新を待つ。
         self.check_for_row_in_list_table('1: Buy dorayaki')
 
         # テキストボックスは引続きアイテムを記入することができるので、
@@ -50,7 +50,7 @@ class NewVisitorTest(unittest.TestCase):
         inputbox = self.browser.find_element_by_id('id_new_item')
         inputbox.send_keys("Demand payment for the dorayaki")
         inputbox.send_keys(Keys.ENTER)
-        time.sleep(1)
+        time.sleep(10)
 
         # ページは再び更新され、新しいアイテムが追加されていることが確認できた
         self.check_for_row_in_list_table('2: Demand payment for the dorayaki')
