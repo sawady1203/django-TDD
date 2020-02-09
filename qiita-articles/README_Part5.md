@@ -9,6 +9,7 @@
 ⇒⇒[その1 - Chapter1](https://qiita.com/komedaoic/items/dd7abd24961250208c7c)はこちら
 ⇒⇒[その2 - Chapter2](https://qiita.com/komedaoic/items/58dc509e8f681da73199)はこちら
 ⇒⇒[その3 - Chapter3](https://qiita.com/komedaoic/items/0057b55c8ba763bda6ca)はこちら
+⇒⇒[その4 - Chapter4](https://qiita.com/komedaoic/items/148b42f070be478f6e23)はこちら
 
 ## Part1. The Basics of TDD and Django
 
@@ -372,7 +373,7 @@ $ git add .
 $ git commit -m "post request returns id_list_table"
 ```
 
-機能テストのテキストがあるかどうかの判断は切り分けて処理を行うのが賢いやり方です。
+機能テストにおける「テキストがあるかどうか」の判断は切り分けて処理を行うのが賢いやり方です。
 機能テストをリファクタリングしましょう。
 
 ```python
@@ -457,9 +458,9 @@ ERROR: lists.tests (unittest.loader._FailedTest)
 ----------------------------------------------------------------------
 ImportError: Failed to import test module: lists.tests
 Traceback (most recent call last):
-  File "C:\Users\masayoshi\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 436, in _find_test_path
+  File "C:\Users\you_name\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 436, in _find_test_path
     module = self._get_module_from_name(name)
-  File "C:\Users\masayoshi\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 377, in _get_module_from_name
+  File "C:\Users\you_name\AppData\Local\Programs\Python\Python37\lib\unittest\loader.py", line 377, in _get_module_from_name
     __import__(name)
   File "C:--your_path--\django-TDD\lists\tests.py", line 4, in <module>
     from lists.models import Item
@@ -602,7 +603,7 @@ $ python manage.py test
 FAIL: test_can_save_a_POST_requset (lists.tests.ItemModelTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\lists\tests.py", line 43, in test_can_save_a_POST_requset
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 43, in test_can_save_a_POST_requset
     self.assertEqual(Item.objects.count(), 1)
 AssertionError: 0 != 1
 
@@ -784,7 +785,7 @@ $ python manage.py test
 FAIL: test_displays_all_lits_items (lists.tests.HomePageTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\lists\tests.py", line 38, in test_displays_all_lits_items
+  File "C:\--your_path--\django-TDD\lists\tests.py", line 38, in test_displays_all_lits_items
     self.assertIn('itemey 1', response.content.decode())
 AssertionError: 'itemey 1' not found in '<!-- lists/home.html -->\n<html>\n    <head>\n        <title>To-Do lists</title>\n    </head>\n
  <body>\n        <h1>Your To-Do list</h1>\n            <form method="post">\n                <input name="item_text" id="id_new_item" placeholder="Enter a to-do item">\n                <input type="hidden" name="csrfmiddlewaretoken" value="DX7a2J4eXPA2wxUPvoN6dKJbDKBZAzZ3XdLGQjQyTNkh6o7GE9jbOkWNAsR8kkVn">\n            </form>\n        <table id="id_list_table">\n            <tr><td>1: </td></tr>\n        </table>\n    </body>\n</html>\n'
@@ -826,7 +827,7 @@ AssertionError: 'To-Do' not found in 'OperationalError at /'
 機能テストを確認すると最初の`To-Do`表示すらできていないことがわかりました。
 これは何か根本的な見落としがありそうです。開発サーバー`(http://localhost:8000)`にアクセスして画面を確認してみましょう。
 
-すると`OperationalError at / no such table: lists_item`という表示があります。
+すると`OperationalError at / no such table: lists_item`と表示されています。
 どうやら作成したと思っていたデータベースが出来ていないようです。
 
 #### Creating Our Production Database with migrate
@@ -884,7 +885,7 @@ AssertionError: '1: Buy dorayaki' not found in ['Buy dorayaki']
 
 どうやらアイテムの表示が`1: ~~`のように数え上げられていないようです。
 これはDjangoのテンプレートタグを使って解決できます。
-*lists/home.html*の<table></table>内容を変更しましょう。
+*lists/home.html*のテーブル表示内容を変更しましょう。
 
 ```html
 <!-- lists/home.html -->
@@ -956,3 +957,23 @@ Running migrations:
 
 コミットしておきましょう。
 
+```sh
+$ git add .
+$ git commit -m "Redirect after POST, and show all items in template"
+```
+
+### Chapter5まとめ
+
+今回はPOSTによるアイテムの受け取り、その保存をTDDで開発することができました。
+POSTによるデータのやりとりにおいて今回テストした内容と、その根拠のをまとめておきます。
+
+|		|	テスト内容	|	確認方法	|
+|	:-:	|	:-:	|	:-:	|
+|	POST	|	POSTされたデータが保存されているかどうか	|	POSTした後にデータの数が増えているかどうか	|
+|		|	POSTされたデータを問題なく取り出せているかどうか	|	最新のデータとPOSTした内容が一緒かどうか	|
+|		|	POSTした後正しいURLへリダイレクトできているかどうか	|	POST後のresponseステータスが302かどうか、response['location']:が正しいredirect先か	|
+|	GET	|	正しくテンプレートが返せているかどうか	|	指定テンプレートが使用されているかどうか	|
+|		|	GETリクエストがPOSTリクエストと区別できているか	|	GET時にアイテムの数が増えていないかどうか	|
+|		|	GETリクエストの際にアイテム一覧が表示されているか	|	リターンされている内容に追加したアイテムが含まれているかどうか	|
+|	データ保存	|	正しくデータが保存されているかどうか	|	アイテムを追加してアイテム数が追加した分だけ増えているかどうか	|
+|		|		|	取り出したアイテムが保存させたデータと一致しているかどうか	|
