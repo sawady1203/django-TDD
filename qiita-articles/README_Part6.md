@@ -24,7 +24,8 @@ Chapter5ではPOSTされたデータが保存されているか、それを問�
 #### Ensuring Test Isolation in Functional Tests
 
 テスト用のデータが残るとテスト間での分離ができないため、「テスト用のデータが保存されているために成功するはずのテストが失敗する」
-ようなトラブルが発生します。これを避けるためにテスト間を分離することを意識することが大切です。
+ようなトラブルが発生します。
+これを避けるためにテスト間を分離することを意識することが大切です。
 
 機能テストでも単体テストのようにテスト用のデータベースを自動で作成して、テストが終われば削除できるような仕組みを
 Djagnoでは`LiveServerTestCase`クラスを使用することで実装することができます。
@@ -132,7 +133,7 @@ System check identified no issues (0 silenced).
 FAIL: test_can_start_a_list_and_retrieve_it_later (functional_tests.tests.NewVisitorTest)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "C:\Users\masayoshi\Documents\03.study\17. Portfolio\django-TDD\functional_tests\tests.py", line 59, in test_can_start_a_list_and_retrieve_it_later
+  File "C:--your_path--\django-TDD\functional_tests\tests.py", line 59, in test_can_start_a_list_and_retrieve_it_later
     self.fail("Finish the test!")
 AssertionError: Finish the test!
 
@@ -153,3 +154,150 @@ $ git status
 $ git add functional_tests
 $ git commit -m "make functional_tests an app, use LiveSeverTestCase"
 ```
+
+#### Running Just the Unit Tests
+
+`python manage.py test`コマンドによってDjangoは単体テストと機能テストを一緒に実行できるようになりました。
+単体テストだけテストを行う場合は`python manage.py test lists`のようにアプリケーションを指定しましょう。
+
+#### On Implicit and Explicit Waits, and Voodoo time.sleeps
+
+機能テストの実行結果を確認するため、`time.sleep(3)`を追加していました。
+この`time.sleep(3)`を3秒にするのか、1秒にするのか、0.5秒にするのか、これはレスポンスによって変わっていきますが
+何が正解か分かりません。
+
+これを必要な文だけ用意させるように機能テストを書き換えていきましょう。
+`check_for_row_in_list_table`を`wait_for_row_in_list_table`に変更し、polling/retryロジックを追加します。
+
+```python
+# django-tdd/functional_tests/tests.py
+
+from django.test import LiveServerTestCase
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import WebDriverException  # 追加
+import time
+
+MAX_WAIT = 10  # 追加
+
+
+class NewVisitorTest(LiveServerTestCase):  # 変更
+
+    def setUp(self):
+        self.browser = webdriver.Chrome()
+
+    def tearDown(self):
+        self.browser.quit()
+
+    def wait_for_row_in_list_table(self, row_text):
+        start_time = time.time()
+        while True:
+            try:
+                table = self.browser.find_element_by_id('id_list_table')
+                rows = table.find_elements_by_tag_name('tr')
+                self.assertIn(row_text, [row.text for row in rows])
+                return
+            except (AssertionError, WebDriverException) as e:
+                if time.time() - start_time > MAX_WAIT:
+                    raise e
+                time.sleep(0.5)
+    [...]
+```
+
+これによってレスポンスに対して必要な時間だけ処理を停めることができるようになりました(後でリファクタリングする)。
+最大10秒まで待てるようにしています。
+
+`check_for_row_in_list_table`を実行していた部分を`wait_for_row_in_list_table`に変更し、`time.sleep(3)`を削除しましょう。
+結果的に、現在の機能テストは下記のようになりました。
+
+```python
+# django-tdd/functional_tests/tests.py
+
+from django.test import LiveServerTestCase
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import WebDriverException  # 追加
+import time
+
+MAX_WAIT = 10  # 追加
+
+
+class NewVisitorTest(LiveServerTestCase):  # 変更
+
+    def setUp(self):
+        self.browser = webdriver.Chrome()
+
+    def tearDown(self):
+        self.browser.quit()
+
+    def wait_for_row_in_list_table(self, row_text):
+        start_time = time.time()
+        while True:
+            try:
+                table = self.browser.find_element_by_id('id_list_table')
+                rows = table.find_elements_by_tag_name('tr')
+                self.assertIn(row_text, [row.text for row in rows])
+                return
+            except (AssertionError, WebDriverException) as e:
+                if time.time() - start_time > MAX_WAIT:
+                    raise e
+                time.sleep(0.5)
+
+    def test_can_start_a_list_and_retrieve_it_later(self):
+        # のび太は新しいto-doアプリがあると聞いてそのホームページにアクセスした。
+        self.browser.get(self.live_server_url)  # 変更
+
+        # のび太はページのタイトルがとヘッダーがto-doアプリであることを示唆していることを確認した。
+        self.assertIn('To-Do', self.browser.title)
+        header_text = self.browser.find_element_by_tag_name('h1').text
+        self.assertIn('To-Do', header_text)
+
+        # のび太はto-doアイテムを記入するように促され、
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        self.assertEqual(
+            inputbox.get_attribute('placeholder'),
+            'Enter a to-do item'
+        )
+
+        # のび太は「どら焼きを買うこと」とテキストボックスに記入した(彼の親友はどら焼きが大好き)
+        inputbox.send_keys('Buy dorayaki')
+
+        # のび太がエンターを押すと、ページは更新され、
+        # "1: どら焼きを買うこと"がto-doリストにアイテムとして追加されていることがわかった
+        inputbox.send_keys(Keys.ENTER)
+        self.wait_for_row_in_list_table('1: Buy dorayaki')
+
+        # テキストボックスは引続きアイテムを記入することができるので、
+        # 「どら焼きのお金を請求すること」を記入した(彼はお金にはきっちりしている)
+        inputbox = self.browser.find_element_by_id('id_new_item')
+        inputbox.send_keys("Demand payment for the dorayaki")
+        inputbox.send_keys(Keys.ENTER)
+
+        # ページは再び更新され、新しいアイテムが追加されていることが確認できた
+        self.wait_for_row_in_list_table('2: Demand payment for the dorayaki')
+
+        # のび太はこのto-doアプリが自分のアイテムをきちんと記録されているのかどうかが気になり、
+        # URLを確認すると、URLはのび太のために特定のURLであるらしいことがわかった
+        self.fail("Finish the test!")
+
+        # のび太は一度確認した特定のURLにアクセスしてみたところ、
+
+        # アイテムが保存されていたので満足して眠りについた。
+```
+
+機能テストを実行すると問題なく`self.fail("Finish the test!") AssertionError: Finish the test!`で終了しました。
+
+#### Testing "Best practives" applied in this chapter
+
+このChapter6でのベストプラクティスをまとめておきます。
+
+- テストは他のテストへ影響を与えてはならない。
+    Djangoのテストランナーはテスト用のデータベースを作成・削除してくれるので機能テストでもこれを利用する。
+
+- time.sleep()の乱用をさける
+    time.sleep()を入れてloading時のバッファをもつことは簡単だが、処理とバッファによっては無意味なエラーが発生することがあるので
+    避ける。
+
+- Seleniumのwaits機能は使わない
+    seleniumに自動でバッファを持つ機能がある(らしい)が、"Explicit is better than implict"とZen of Pythonにあるので
+    明示的な実装が好まれる。

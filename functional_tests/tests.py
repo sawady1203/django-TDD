@@ -1,9 +1,12 @@
 # django-tdd/functional_tests/tests.py
 
-from django.test import LiveServerTestCase  # 追加
+from django.test import LiveServerTestCase
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import WebDriverException  # 追加
 import time
+
+MAX_WAIT = 10  # 追加
 
 
 class NewVisitorTest(LiveServerTestCase):  # 変更
@@ -14,10 +17,18 @@ class NewVisitorTest(LiveServerTestCase):  # 変更
     def tearDown(self):
         self.browser.quit()
 
-    def check_for_row_in_list_table(self, row_text):
-        table = self.browser.find_element_by_id('id_list_table')
-        rows = table.find_elements_by_tag_name('tr')
-        self.assertIn(row_text, [row.text for row in rows])
+    def wait_for_row_in_list_table(self, row_text):
+        start_time = time.time()
+        while True:
+            try:
+                table = self.browser.find_element_by_id('id_list_table')
+                rows = table.find_elements_by_tag_name('tr')
+                self.assertIn(row_text, [row.text for row in rows])
+                return
+            except (AssertionError, WebDriverException) as e:
+                if time.time() - start_time > MAX_WAIT:
+                    raise e
+                time.sleep(0.5)
 
     def test_can_start_a_list_and_retrieve_it_later(self):
         # のび太は新しいto-doアプリがあると聞いてそのホームページにアクセスした。
@@ -41,18 +52,16 @@ class NewVisitorTest(LiveServerTestCase):  # 変更
         # のび太がエンターを押すと、ページは更新され、
         # "1: どら焼きを買うこと"がto-doリストにアイテムとして追加されていることがわかった
         inputbox.send_keys(Keys.ENTER)
-        time.sleep(3)  # ページ更新を待つ。
-        self.check_for_row_in_list_table('1: Buy dorayaki')
+        self.wait_for_row_in_list_table('1: Buy dorayaki')
 
         # テキストボックスは引続きアイテムを記入することができるので、
         # 「どら焼きのお金を請求すること」を記入した(彼はお金にはきっちりしている)
         inputbox = self.browser.find_element_by_id('id_new_item')
         inputbox.send_keys("Demand payment for the dorayaki")
         inputbox.send_keys(Keys.ENTER)
-        time.sleep(3)
 
         # ページは再び更新され、新しいアイテムが追加されていることが確認できた
-        self.check_for_row_in_list_table('2: Demand payment for the dorayaki')
+        self.wait_for_row_in_list_table('2: Demand payment for the dorayaki')
 
         # のび太はこのto-doアプリが自分のアイテムをきちんと記録されているのかどうかが気になり、
         # URLを確認すると、URLはのび太のために特定のURLであるらしいことがわかった
