@@ -1,13 +1,12 @@
-# django-tdd/functional_tests.py
+# django-tdd/functional_tests/tests.py
 
+from django.test import LiveServerTestCase  # 追加
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 import time
 
-import unittest
 
-
-class NewVisitorTest(unittest.TestCase):
+class NewVisitorTest(LiveServerTestCase):  # 変更
 
     def setUp(self):
         self.browser = webdriver.Chrome()
@@ -22,7 +21,7 @@ class NewVisitorTest(unittest.TestCase):
 
     def test_can_start_a_list_and_retrieve_it_later(self):
         # のび太は新しいto-doアプリがあると聞いてそのホームページにアクセスした。
-        self.browser.get('http://localhost:8000')
+        self.browser.get(self.live_server_url)  # 変更
 
         # のび太はページのタイトルがとヘッダーがto-doアプリであることを示唆していることを確認した。
         self.assertIn('To-Do', self.browser.title)
@@ -42,7 +41,7 @@ class NewVisitorTest(unittest.TestCase):
         # のび太がエンターを押すと、ページは更新され、
         # "1: どら焼きを買うこと"がto-doリストにアイテムとして追加されていることがわかった
         inputbox.send_keys(Keys.ENTER)
-        time.sleep(10)  # ページ更新を待つ。
+        time.sleep(3)  # ページ更新を待つ。
         self.check_for_row_in_list_table('1: Buy dorayaki')
 
         # テキストボックスは引続きアイテムを記入することができるので、
@@ -50,7 +49,7 @@ class NewVisitorTest(unittest.TestCase):
         inputbox = self.browser.find_element_by_id('id_new_item')
         inputbox.send_keys("Demand payment for the dorayaki")
         inputbox.send_keys(Keys.ENTER)
-        time.sleep(10)
+        time.sleep(3)
 
         # ページは再び更新され、新しいアイテムが追加されていることが確認できた
         self.check_for_row_in_list_table('2: Demand payment for the dorayaki')
@@ -62,7 +61,3 @@ class NewVisitorTest(unittest.TestCase):
         # のび太は一度確認した特定のURLにアクセスしてみたところ、
 
         # アイテムが保存されていたので満足して眠りについた。
-
-
-if __name__ == '__main__':
-    unittest.main(warnings='ignore')
